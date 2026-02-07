@@ -7,3 +7,5 @@
 1. You'll see a bunch of logs "rendering LayoutChild"
 1. The logs stop only after seeing "rendering PageChild"
 1. If you enable network throttling, the issue gets worse
+
+Full issue report here: https://github.com/vercel/next.js/issues/89654
