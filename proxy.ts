@@ -23,11 +23,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length !== 1) {
-    return NextResponse.rewrite(new URL(NOT_FOUND_PATH, origin));
-  }
-  const seg = segments[0];
+  const slug = pathname.substring(1);
 
   let slugs: string[] = [];
   try {
@@ -40,11 +36,11 @@ export async function proxy(request: NextRequest) {
     }
   } catch {
     // Fail open: optimistically render. The page's notFound() is the backstop.
-    return NextResponse.rewrite(new URL(RENDER_PREFIX + seg, origin));
+    return NextResponse.rewrite(new URL(RENDER_PREFIX + slug, origin));
   }
 
-  if (slugs.includes(seg)) {
-    return NextResponse.rewrite(new URL(RENDER_PREFIX + seg, origin));
+  if (slugs.includes(slug)) {
+    return NextResponse.rewrite(new URL(RENDER_PREFIX + slug, origin));
   }
 
   return NextResponse.rewrite(new URL(NOT_FOUND_PATH, origin));
