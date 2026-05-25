@@ -4,42 +4,75 @@ import config from "../payload.config";
 const ADMIN_EMAIL = "admin@example.com";
 const ADMIN_PASSWORD = "password";
 
-const richText = (text: string) => ({
+type LexicalNode = Record<string, unknown> & { type: string; version: number };
+
+const text = (value: string): LexicalNode => ({
+  mode: "normal",
+  text: value,
+  type: "text",
+  style: "",
+  detail: 0,
+  format: 0,
+  version: 1,
+});
+
+const link = (url: string, label: string): LexicalNode => ({
+  type: "link",
+  format: "",
+  indent: 0,
+  version: 3,
+  direction: "ltr",
+  fields: { linkType: "custom", url, newTab: false },
+  children: [text(label)],
+});
+
+const paragraph = (...children: LexicalNode[]): LexicalNode => ({
+  type: "paragraph",
+  format: "",
+  indent: 0,
+  version: 1,
+  direction: "ltr",
+  textFormat: 0,
+  textStyle: "",
+  children,
+});
+
+const doc = (...children: LexicalNode[]) => ({
   root: {
     type: "root",
     format: "" as const,
     indent: 0,
     version: 1,
     direction: "ltr" as const,
-    children: [
-      {
-        type: "paragraph",
-        format: "",
-        indent: 0,
-        version: 1,
-        direction: "ltr",
-        textFormat: 0,
-        textStyle: "",
-        children: [
-          {
-            mode: "normal",
-            text,
-            type: "text",
-            style: "",
-            detail: 0,
-            format: 0,
-            version: 1,
-          },
-        ],
-      },
-    ],
+    children,
   },
 });
 
 const PAGES = [
-  { title: "Home", slug: "home", body: "Welcome to the home page." },
-  { title: "About", slug: "about", body: "A short page about this project." },
-  { title: "Contact", slug: "contact", body: "Reach us at hello@example.com." },
+  {
+    title: "Home",
+    slug: "home",
+    content: doc(
+      paragraph(text("Welcome to the home page.")),
+      paragraph(
+        text("Other pages: "),
+        link("/about", "About"),
+        text(" • "),
+        link("/contact", "Contact"),
+      ),
+      paragraph(link("/admin", "Open admin →")),
+    ),
+  },
+  {
+    title: "About",
+    slug: "about",
+    content: doc(paragraph(text("A short page about this project."))),
+  },
+  {
+    title: "Contact",
+    slug: "contact",
+    content: doc(paragraph(text("Reach us at hello@example.com."))),
+  },
 ];
 
 const seed = async () => {
@@ -74,7 +107,7 @@ const seed = async () => {
       data: {
         title: page.title,
         slug: page.slug,
-        content: richText(page.body),
+        content: page.content,
       },
     });
     payload.logger.info(`Created page: ${page.slug}`);

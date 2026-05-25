@@ -4,12 +4,16 @@ type SlugsResponse = { slugs: string[] };
 
 const NOT_FOUND_PATH = "/internal-not-found";
 const RENDER_PREFIX = "/render/";
+const HOME_SLUG = "home";
 
 export async function proxy(request: NextRequest) {
   const { pathname, origin } = request.nextUrl;
 
+  if (pathname === "/") {
+    return NextResponse.rewrite(new URL(RENDER_PREFIX + HOME_SLUG, origin));
+  }
+
   if (
-    pathname === "/" ||
     pathname === NOT_FOUND_PATH ||
     pathname.startsWith(RENDER_PREFIX) ||
     pathname.startsWith("/api/") ||
@@ -47,5 +51,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/|admin|_next/|render/|.*\\..*|$).+)"],
+  matcher: ["/", "/((?!api/|admin|_next/|render/|.*\\..*).+)"],
 };
