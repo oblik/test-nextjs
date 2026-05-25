@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 type SlugsResponse = { slugs: string[] };
 
 const NOT_FOUND_PATH = "/internal-not-found";
+const RENDER_PREFIX = "/render/";
 
 export async function proxy(request: NextRequest) {
   const { pathname, origin } = request.nextUrl;
@@ -10,6 +11,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname === "/" ||
     pathname === NOT_FOUND_PATH ||
+    pathname.startsWith(RENDER_PREFIX) ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/_next/")
@@ -33,16 +35,17 @@ export async function proxy(request: NextRequest) {
       slugs = Array.isArray(json.slugs) ? json.slugs : [];
     }
   } catch {
-    return NextResponse.next();
+    // Fail open: optimistically render. The page's notFound() is the backstop.
+    return NextResponse.rewrite(new URL(RENDER_PREFIX + seg, origin));
   }
 
   if (slugs.includes(seg)) {
-    return NextResponse.next();
+    return NextResponse.rewrite(new URL(RENDER_PREFIX + seg, origin));
   }
 
   return NextResponse.rewrite(new URL(NOT_FOUND_PATH, origin));
 }
 
 export const config = {
-  matcher: ["/((?!api/|admin|_next/|.*\\..*|$).+)"],
+  matcher: ["/((?!api/|admin|_next/|render/|.*\\..*|$).+)"],
 };

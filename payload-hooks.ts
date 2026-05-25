@@ -22,13 +22,13 @@ export const pagesAfterChange: CollectionAfterChangeHook = ({
   operation,
 }) => {
   const paths: string[] = ["/api/slugs"];
-  if (doc?.slug) paths.push("/" + doc.slug);
+  if (doc?.slug) paths.push("/render/" + doc.slug);
   if (
     operation === "update" &&
     previousDoc?.slug &&
     previousDoc.slug !== doc.slug
   ) {
-    paths.push("/" + previousDoc.slug);
+    paths.push("/render/" + previousDoc.slug);
   }
   bust(["slugs"], paths);
   return doc;
@@ -36,7 +36,7 @@ export const pagesAfterChange: CollectionAfterChangeHook = ({
 
 export const pagesAfterDelete: CollectionAfterDeleteHook = ({ doc }) => {
   const paths: string[] = ["/api/slugs"];
-  if (doc?.slug) paths.push("/" + doc.slug);
+  if (doc?.slug) paths.push("/render/" + doc.slug);
   bust(["slugs"], paths);
   return doc;
 };

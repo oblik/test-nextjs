@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getPayload } from "payload";
 
 export const revalidate = 10;
+export const dynamic = "error";
 
 type Props = { params: Promise<{ slug: string }> };
 
