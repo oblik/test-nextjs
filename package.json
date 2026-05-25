@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@payloadcms/db-sqlite": "^3.84.1",
+    "@payloadcms/live-preview-react": "^3.84.1",
     "@payloadcms/next": "^3.84.1",
     "@payloadcms/richtext-lexical": "^3.84.1",
     "graphql": "^16.14.0",

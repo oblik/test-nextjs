@@ -24,7 +24,19 @@ export default buildConfig({
     },
     {
       slug: "pages",
-      admin: { useAsTitle: "title" },
+      admin: {
+        useAsTitle: "title",
+        preview: (doc) =>
+          typeof doc?.slug === "string" && doc.slug.length > 0
+            ? `/${doc.slug}`
+            : null,
+        livePreview: {
+          url: ({ data }) =>
+            typeof data?.slug === "string" && data.slug.length > 0
+              ? `/${data.slug}`
+              : "/",
+        },
+      },
       hooks: {
         afterChange: [pagesAfterChange],
         afterDelete: [pagesAfterDelete],

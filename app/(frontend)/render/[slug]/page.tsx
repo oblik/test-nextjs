@@ -1,8 +1,9 @@
 import config from "@payload-config";
-import { RichText } from "@payloadcms/richtext-lexical/react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPayload } from "payload";
+
+import { LivePage } from "./LivePage";
 
 export const revalidate = 10;
 export const dynamic = "error";
@@ -33,8 +34,7 @@ export default async function Page({ params }: Props) {
       <p>
         <Link href="/">← All pages</Link>
       </p>
-      <h1>{page.title}</h1>
-      {page.content ? <RichText data={page.content as never} /> : null}
+      <LivePage initialPage={page} />
     </main>
   );
 }
