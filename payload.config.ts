@@ -6,6 +6,8 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 
+import { pagesAfterChange, pagesAfterDelete } from "./payload-hooks";
+
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
@@ -23,6 +25,10 @@ export default buildConfig({
     {
       slug: "pages",
       admin: { useAsTitle: "title" },
+      hooks: {
+        afterChange: [pagesAfterChange],
+        afterDelete: [pagesAfterDelete],
+      },
       fields: [
         {
           name: "title",
