@@ -1,15 +1,24 @@
 {
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node --env-file=.env --import tsx scripts/seed.ts",
+    "generate:types": "node --env-file=.env --import tsx node_modules/payload/dist/bin/generateTypes.js"
   },
   "dependencies": {
-    "next": "16.1.6",
+    "@payloadcms/db-sqlite": "^3.84.1",
+    "@payloadcms/next": "^3.84.1",
+    "@payloadcms/richtext-lexical": "^3.84.1",
+    "graphql": "^16.14.0",
+    "next": "16.2.6",
+    "payload": "^3.84.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.0",
@@ -19,6 +28,7 @@
     "eslint": "9.39.3",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "4.2.0",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3"
   }
 }
