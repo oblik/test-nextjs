@@ -9,8 +9,9 @@ Next.js 16 + Payload CMS 3 on SQLite.
 
 ## Setup
 
-```bash
+```sh
 git clone git@github.com:oblik/test-nextjs.git
+cd ./test-nextjs
 git checkout project
 pnpm install
 cp .env.example .env
