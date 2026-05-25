@@ -73,6 +73,11 @@ const PAGES = [
     slug: "contact",
     content: doc(paragraph(text("Reach us at hello@example.com."))),
   },
+  {
+    title: "Nested Page",
+    slug: "foo/bar",
+    content: doc(paragraph(text("How do we make this page render?"))),
+  },
 ];
 
 const seed = async () => {
