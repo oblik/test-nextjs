@@ -1,4 +1,4 @@
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -28,15 +28,26 @@ export default async function Page({
   const data = await getData(slug);
 
   return (
-    <pre>
-      {JSON.stringify(
-        {
-          renderedAt: new Date().toISOString(),
-          cachedData: data,
-        },
-        null,
-        2,
-      )}
-    </pre>
+    <div>
+      <pre>
+        {JSON.stringify(
+          {
+            renderedAt: new Date().toISOString(),
+            cachedData: data,
+          },
+          null,
+          2,
+        )}
+      </pre>
+      <button
+        onClick={async () => {
+          "use server";
+          console.log("logging on the server??");
+          revalidateTag("my-tag", "minutes");
+        }}
+      >
+        Refresh
+      </button>
+    </div>
   );
 }

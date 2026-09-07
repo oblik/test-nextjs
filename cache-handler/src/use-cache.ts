@@ -31,7 +31,7 @@ export class Handler implements CacheHandler {
    * Inspired by the example custom cache handler implementation by Next.
    * @see https://github.com/vercel/next.js/blob/6ef6e29db5ec78704af1ea05a16b233bb7faac7c/packages/next/src/server/lib/cache-handlers/default.ts#L68
    */
-  pendingSets = new Map<string, Promise<CacheEntry | undefined>>();
+  pendingSets = new Map<string, Promise<CacheEntry>>();
 
   constructor({
     buildId,
@@ -59,7 +59,15 @@ export class Handler implements CacheHandler {
     const filename = this.keyToFilename(cacheKey);
 
     const pendingPromise = this.pendingSets.get(filename);
-    if (pendingPromise) return pendingPromise;
+    if (pendingPromise) {
+      const entry = await pendingPromise;
+
+      debug?.(`get ${filename}: copying pending entry stream`);
+      const [streamCopy, value] = entry.value.tee();
+      entry.value = streamCopy;
+
+      return { ...entry, value };
+    }
 
     const body = await this.storage.get(filename);
     if (!body) {
@@ -84,28 +92,29 @@ export class Handler implements CacheHandler {
     return result;
   }
 
+  /**
+   * @todo Immediately when a set is made, add the entry to the memory cache, to
+   * avoid having to download it and make unnecessary HTTP roundtrips.
+   */
   async set(
     cacheKey: string,
     pendingEntry: Promise<CacheEntry>,
   ): Promise<void> {
     const filename = this.keyToFilename(cacheKey);
 
-    let resolve: (value?: CacheEntry) => void;
-    const pendingPromise = new Promise<CacheEntry | undefined>(
-      (r) => (resolve = r),
-    );
-    this.pendingSets.set(filename, pendingPromise);
-
-    let entry: CacheEntry | undefined;
+    this.pendingSets.set(filename, pendingEntry);
 
     try {
-      entry = await pendingEntry;
+      const entry = await pendingEntry;
 
       /**
        * Like the Next.js implementation.
        * @see https://github.com/vercel/next.js/blob/6ef6e29db5ec78704af1ea05a16b233bb7faac7c/packages/next/src/server/lib/cache-handlers/default.ts#L177
        */
-      const { value, ...metadata } = entry;
+      const { value: originalStream, ...metadata } = entry;
+      const [streamCopy, value] = originalStream.tee();
+      entry.value = streamCopy;
+
       const valueBuffer = await streamToBuffer(value);
       const storedValue = { value: valueBuffer, ...metadata };
 
@@ -118,7 +127,6 @@ export class Handler implements CacheHandler {
       await this.storage.put(filename, body);
       debug?.(`set ${filename}: written to storage`);
     } finally {
-      resolve!(entry);
       this.pendingSets.delete(filename);
       debug?.(`set ${filename}: deleted pending promise`);
     }
