@@ -188,6 +188,12 @@ export class Handler implements CacheHandler {
     // keys can vary across deploys, even if the cached function's code and
     // arguments stay the same. By removing the ID, we make the keys constant
     // across deploys, as long as the related code and arguments stay the same.
+    /**
+     * @todo The other part of the key based on the function code is constant
+     * across builds only as long as the `.next/cache` directory stays the same.
+     * So if two distinct servers build the same code, the keys would still
+     * differ and the cache won't be sticky.
+     */
     if (this.options.sticky) cacheKey = cacheKey.replace(this.buildId, "");
 
     const keyHash = createHash("md5").update(cacheKey).digest("hex");
