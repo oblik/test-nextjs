@@ -1,5 +1,5 @@
 import { getData } from "@/components/getData";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 
 export const instant = false;
 
@@ -29,11 +29,19 @@ export default async function Page({
       <button
         onClick={async () => {
           "use server";
-          console.log("logging on the server??");
           revalidateTag("my-tag", "minutes");
         }}
       >
-        Refresh
+        Revalidate
+      </button>
+
+      <button
+        onClick={async () => {
+          "use server";
+          updateTag("my-tag");
+        }}
+      >
+        Expire
       </button>
     </div>
   );
