@@ -184,7 +184,7 @@ export class Handler implements CacheHandler {
 
   protected keyToFilename(cacheKey: string) {
     const keyHash = createHash("md5").update(cacheKey).digest("hex");
-    let filename = `${keyHash}.json`;
+    let filename = `build/${this.buildId}/${this.options.name}/${keyHash}.json`;
 
     if (this.options.compress) filename += ".br";
 
