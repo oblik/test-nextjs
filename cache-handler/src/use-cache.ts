@@ -184,6 +184,8 @@ export class Handler implements CacheHandler {
   }
 
   protected keyToFilename(cacheKey: string) {
+    debugger;
+
     // By default, Next makes the build ID part of the cache key, so that cache
     // keys can vary across deploys, even if the cached function's code and
     // arguments stay the same. By removing the ID, we make the keys constant
@@ -193,6 +195,7 @@ export class Handler implements CacheHandler {
      * across builds only as long as the `.next/cache` directory stays the same.
      * So if two distinct servers build the same code, the keys would still
      * differ and the cache won't be sticky.
+     * @see next.js/packages/next/src/server/use-cache/use-cache-wrapper.ts:1489
      */
     if (this.options.sticky) cacheKey = cacheKey.replace(this.buildId, "");
 
