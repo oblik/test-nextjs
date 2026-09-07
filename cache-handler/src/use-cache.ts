@@ -23,11 +23,12 @@ export class Handler implements CacheHandler {
   tagsManager: TagsManager;
   options: {
     name: string;
+    sticky: boolean;
     compress: boolean;
     base64: boolean;
   };
 
-  tags?: Readonly<TagsManifest[string]>;
+  tags?: Readonly<TagsManifest>;
 
   /**
    * Inspired by the example custom cache handler implementation by Next.
@@ -54,7 +55,7 @@ export class Handler implements CacheHandler {
 
   async refreshTags() {
     debug?.("refreshing tags");
-    this.tags = await this.tagsManager.getTags(this.options.name);
+    this.tags = await this.tagsManager.getTags();
   }
 
   async get(
@@ -179,12 +180,29 @@ export class Handler implements CacheHandler {
       tagsCopy[tag] = newEntry;
     }
 
-    await this.tagsManager.putTags(this.options.name, tagsCopy);
+    await this.tagsManager.putTags(tagsCopy);
   }
 
   protected keyToFilename(cacheKey: string) {
+    // By default, Next makes the build ID part of the cache key, so that cache
+    // keys can vary across deploys, even if the cached function's code and
+    // arguments stay the same. By removing the ID, we make the keys constant
+    // across deploys, as long as the related code and arguments stay the same.
+    if (this.options.sticky) cacheKey = cacheKey.replace(this.buildId, "");
+
     const keyHash = createHash("md5").update(cacheKey).digest("hex");
-    let filename = `build/${this.buildId}/${this.options.name}/${keyHash}.json`;
+    let filename = `${this.options.name}/${keyHash}.json`;
+
+    if (!this.options.sticky) {
+      filename =
+        // Add a top-level `build` directory, so that artifacts don't flood the root
+        // and make the manifest difficult to find.
+        `build/` +
+        // Then add the unique build ID, so that you can purge all artifacts
+        // related to one specific build.
+        `${this.buildId}/` +
+        filename;
+    }
 
     if (this.options.compress) filename += ".br";
 

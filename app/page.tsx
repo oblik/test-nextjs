@@ -1,4 +1,5 @@
 import { getData } from "@/components/getData";
+import { getStickyData } from "@/components/getStickyData";
 import { revalidateTag, updateTag } from "next/cache";
 import { connection } from "next/server";
 
@@ -11,12 +12,13 @@ export default async function Page() {
   console.log(`\n[Page] render #${renderId} 🟢`);
 
   await connection();
-  const data = await getData();
+  const [data, stickyData] = await Promise.all([getData(), getStickyData()]);
 
   const json = JSON.stringify(
     {
       renderedAt: new Date().toISOString(),
-      cachedData: data,
+      data,
+      stickyData,
     },
     null,
     2,

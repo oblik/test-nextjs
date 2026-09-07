@@ -1,12 +1,10 @@
 import type { HandlerStorage } from "./storage/types";
 
 export interface TagsManifest {
-  [handlerName: string]: {
-    [tagName: string]: Readonly<{
-      expired?: number;
-      staled?: number;
-    }>;
-  };
+  [tagName: string]: Readonly<{
+    expired?: number;
+    staled?: number;
+  }>;
 }
 
 export class TagsManager {
@@ -15,19 +13,10 @@ export class TagsManager {
 
   constructor(protected storage: HandlerStorage) {}
 
-  async getTags(handlerName: string) {
-    const manifest = await this.readManifest();
-    return manifest?.[handlerName];
-  }
-
-  async putTags(handlerName: string, tags: TagsManifest[string]) {
-    return this.writeManifest({ ...this.manifest, [handlerName]: tags });
-  }
-
   /**
    * @todo Add short in-memory caching of e.g. 500ms
    */
-  protected async readManifest() {
+  async getTags() {
     if (this.readPromise) return this.readPromise;
 
     this.readPromise = this.fetchManifest();
@@ -39,7 +28,7 @@ export class TagsManager {
   /**
    * @todo Add cleanup of tags older than X hours/days, to optimize space
    */
-  protected async writeManifest(tags: TagsManifest) {
+  async putTags(tags: TagsManifest) {
     const json = JSON.stringify(tags);
     const body = Buffer.from(json, "utf-8");
     await this.storage.put("tags-manifest.json", body);

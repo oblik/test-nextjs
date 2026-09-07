@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   // build output directory (e.g. .next/dev), not the project root.
   cacheHandlers: {
     default: path.join(__dirname, "cache-handler/default.mjs"),
+    sticky: path.join(__dirname, "cache-handler/sticky.mjs"),
   },
 };
 
