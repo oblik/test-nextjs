@@ -1,16 +1,20 @@
 import { cacheLife, cacheTag } from "next/cache";
 
-export async function getData(slug: string) {
+let callCount = 0;
+
+export async function getData() {
   "use cache";
   cacheTag("my-tag");
   cacheLife("days");
 
-  console.log("[getData] cache miss; doing work", new Date().toISOString());
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const callId = ++callCount;
+
+  console.log(`[getData] call #${callId} 🟢`);
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  console.log(`[getData] call #${callId} 🔴`);
 
   return {
-    slug,
-    generatedAt: new Date().toISOString(),
-    random: Math.random(),
+    finishTime: new Date().toISOString(),
+    callCount,
   };
 }

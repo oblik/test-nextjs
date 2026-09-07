@@ -190,6 +190,7 @@ export class Handler implements CacheHandler {
     durations?: { expire?: number },
   ): Promise<void> {
     const now = Math.round(performance.timeOrigin + performance.now());
+    console.log({ perfNow: now, dateNow: Date.now() });
 
     for (const tag of tags) {
       const existingEntry = tagsManifest.get(tag) || {};
