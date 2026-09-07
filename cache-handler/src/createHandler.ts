@@ -8,7 +8,7 @@ import type { Handler } from "./use-cache";
 let root: string;
 let buildId: string;
 let storage: HandlerStorage;
-let tags: TagsManager;
+let tagsManager: TagsManager;
 
 export function createHandler(
   HandlerClass: typeof Handler,
@@ -29,7 +29,7 @@ export function createHandler(
 
   if (!storage) storage = new FsStorage(path.join(root, "cache/cache-handler"));
 
-  if (!tags) tags = new TagsManager(storage);
+  if (!tagsManager) tagsManager = new TagsManager(storage);
 
-  return new HandlerClass({ buildId, storage, tags, options });
+  return new HandlerClass({ buildId, storage, tagsManager, options });
 }

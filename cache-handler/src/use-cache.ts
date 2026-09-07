@@ -20,14 +20,14 @@ const debug = process.env.NEXT_CACHE_S3_DEBUG
 export class Handler implements CacheHandler {
   buildId: string;
   storage: HandlerStorage;
-  tags: TagsManager;
+  tagsManager: TagsManager;
   options: {
     name: string;
     compress: boolean;
     base64: boolean;
   };
 
-  tagEntries?: Readonly<TagsManifest[string]>;
+  tags?: Readonly<TagsManifest[string]>;
 
   /**
    * Inspired by the example custom cache handler implementation by Next.
@@ -38,23 +38,23 @@ export class Handler implements CacheHandler {
   constructor({
     buildId,
     storage,
-    tags,
+    tagsManager,
     options,
   }: {
     buildId: string;
     storage: HandlerStorage;
-    tags: TagsManager;
+    tagsManager: TagsManager;
     options: Handler["options"];
   }) {
     this.buildId = buildId;
     this.storage = storage;
-    this.tags = tags;
+    this.tagsManager = tagsManager;
     this.options = options;
   }
 
   async refreshTags() {
     debug?.("refreshing tags");
-    this.tagEntries = await this.tags.getTags(this.options.name);
+    this.tags = await this.tagsManager.getTags(this.options.name);
   }
 
   async get(
@@ -159,7 +159,7 @@ export class Handler implements CacheHandler {
   ): Promise<void> {
     const now = Date.now();
 
-    const tagsCopy = { ...this.tagEntries };
+    const tagsCopy = { ...this.tags };
 
     for (const tag of tags) {
       const existingEntry = tagsCopy[tag];
@@ -179,7 +179,7 @@ export class Handler implements CacheHandler {
       tagsCopy[tag] = newEntry;
     }
 
-    await this.tags.putTags(this.options.name, tagsCopy);
+    await this.tagsManager.putTags(this.options.name, tagsCopy);
   }
 
   protected keyToFilename(cacheKey: string) {
@@ -195,7 +195,7 @@ export class Handler implements CacheHandler {
     const now = Date.now();
 
     for (const tag of tags) {
-      const entry = this.tagEntries?.[tag];
+      const entry = this.tags?.[tag];
 
       const expiredAt = entry?.expired;
       if (typeof expiredAt !== "number") continue;
@@ -208,7 +208,7 @@ export class Handler implements CacheHandler {
 
   protected hasStaledTags(tags: string[], createdAt: Timestamp) {
     for (const tag of tags) {
-      const entry = this.tagEntries?.[tag];
+      const entry = this.tags?.[tag];
 
       const staledAt = entry?.staled;
       if (typeof staledAt !== "number") continue;
