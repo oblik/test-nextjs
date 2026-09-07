@@ -8,31 +8,24 @@ import {
   streamToBuffer,
 } from "next/dist/server/stream-utils/node-web-streams-helper";
 import { createHash } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import { decode, encode } from "./compress";
 import { replaceBuffers, reviveBuffers } from "./reviveBuffers";
-import { FsStorage } from "./storage/fs";
-import type { Storage } from "./storage/types";
+import type { HandlerStorage } from "./storage/types";
+import type { TagsManager, TagsManifest } from "./TagsManager";
 
 const debug = process.env.NEXT_CACHE_S3_DEBUG
   ? console.debug.bind(console, "[next-cache-s3]:")
   : undefined;
 
-export interface TagManifestEntry {
-  staled?: number;
-  expired?: number;
-}
-
-// We share the tags manifest between the "use cache" handlers and the previous
-// file-system cache.
-export const tagsManifest = new Map<string, TagManifestEntry>();
-
-export const hasExpiredTags = (tags: string[], createdAt: Timestamp) => {
+export const hasExpiredTags = (
+  handlerTags: TagsManifest[string],
+  tags: string[],
+  createdAt: Timestamp,
+) => {
   const now = Date.now();
 
   for (const tag of tags) {
-    const entry = tagsManifest.get(tag);
+    const entry = handlerTags[tag];
 
     const expiredAt = entry?.expired;
     if (typeof expiredAt !== "number") continue;
@@ -43,9 +36,13 @@ export const hasExpiredTags = (tags: string[], createdAt: Timestamp) => {
   return false;
 };
 
-export const hasStaledTags = (tags: string[], createdAt: Timestamp) => {
+export const hasStaledTags = (
+  handlerTags: TagsManifest[string],
+  tags: string[],
+  createdAt: Timestamp,
+) => {
   for (const tag of tags) {
-    const entry = tagsManifest.get(tag);
+    const entry = handlerTags[tag];
 
     const staledAt = entry?.staled;
     if (typeof staledAt !== "number") continue;
@@ -58,11 +55,15 @@ export const hasStaledTags = (tags: string[], createdAt: Timestamp) => {
 
 export class Handler implements CacheHandler {
   buildId: string;
-  storage: Storage;
+  storage: HandlerStorage;
+  tags: TagsManager;
   options: {
+    name: string;
     compress: boolean;
     base64: boolean;
   };
+
+  tagEntries?: Readonly<TagsManifest[string]>;
 
   /**
    * Inspired by the example custom cache handler implementation by Next.
@@ -73,20 +74,23 @@ export class Handler implements CacheHandler {
   constructor({
     buildId,
     storage,
+    tags,
     options,
   }: {
     buildId: string;
-    storage: Storage;
+    storage: HandlerStorage;
+    tags: TagsManager;
     options: Handler["options"];
   }) {
     this.buildId = buildId;
     this.storage = storage;
+    this.tags = tags;
     this.options = options;
   }
 
   async refreshTags() {
     debug?.("refreshing tags");
-    return;
+    this.tagEntries = await this.tags.getTags(this.options.name);
   }
 
   async get(
@@ -126,14 +130,16 @@ export class Handler implements CacheHandler {
 
     const entry: CacheEntry = { ...json, value: streamFromBuffer(json.value) };
 
-    if (hasExpiredTags(entry.tags, entry.timestamp)) {
-      debug?.(`get ${filename}: had an expired tag`);
-      return undefined;
-    }
+    if (this.tagEntries) {
+      if (hasExpiredTags(this.tagEntries, entry.tags, entry.timestamp)) {
+        debug?.(`get ${filename}: had an expired tag`);
+        return undefined;
+      }
 
-    if (hasStaledTags(entry.tags, entry.timestamp)) {
-      debug?.(`get ${filename}: had a staled tag`);
-      entry.revalidate = -1;
+      if (hasStaledTags(this.tagEntries, entry.tags, entry.timestamp)) {
+        debug?.(`get ${filename}: had a staled tag`);
+        entry.revalidate = -1;
+      }
     }
 
     debug?.(`get ${filename}: returning cached entry`, entry);
@@ -189,12 +195,13 @@ export class Handler implements CacheHandler {
     tags: string[],
     durations?: { expire?: number },
   ): Promise<void> {
-    const now = Math.round(performance.timeOrigin + performance.now());
-    console.log({ perfNow: now, dateNow: Date.now() });
+    const now = Date.now();
+
+    const tagsCopy = { ...this.tagEntries };
 
     for (const tag of tags) {
-      const existingEntry = tagsManifest.get(tag) || {};
-      const newEntry: TagManifestEntry = { ...existingEntry };
+      const existingEntry = tagsCopy[tag];
+      const newEntry = { ...existingEntry };
 
       if (durations) {
         newEntry.staled = now;
@@ -207,12 +214,10 @@ export class Handler implements CacheHandler {
       }
 
       debug?.(`updateTags (${tag})`, { durations, newEntry });
-      tagsManifest.set(tag, newEntry);
+      tagsCopy[tag] = newEntry;
     }
 
-    /**
-     * @todo persist tags to storage
-     */
+    await this.tags.putTags(this.options.name, tagsCopy);
   }
 
   // Util methods
@@ -225,29 +230,4 @@ export class Handler implements CacheHandler {
 
     return filename;
   }
-}
-
-let root: string | undefined;
-let buildId: string | undefined;
-
-export function createHandler(
-  HandlerClass: typeof Handler,
-  options: Handler["options"],
-): Handler | undefined {
-  // Next initializes during build, where it makes no sense to create handlers,
-  // since there's no `BUILD_ID` file and no traffic to serve.
-  if (process.env.NEXT_PHASE === "phase-production-build") return;
-
-  if (!root) {
-    root = path.join(process.cwd(), ".next");
-
-    const buildIdPath = path.join(root, "BUILD_ID");
-    buildId = fs.readFileSync(buildIdPath, "utf8");
-  }
-
-  if (!buildId) throw new Error("Build ID missing");
-
-  const storage = new FsStorage(path.join(root, "cache/cache-handler"));
-
-  return new HandlerClass({ buildId, storage, options });
 }

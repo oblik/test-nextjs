@@ -12,7 +12,7 @@ import { isErrno } from "./isErrno";
 import { mapKey } from "./mapKey";
 import { replaceBuffers, reviveBuffers } from "./reviveBuffers";
 import { createStorage } from "./storage/index";
-import type { Storage } from "./storage/types";
+import type { HandlerStorage } from "./storage/types";
 
 const DEBUG = process.env.PINO_LOG_LEVEL === "trace";
 const { CACHE_S3_BUCKET, CACHE_S3_REGION, CACHE_COMPRESS, CACHE_BASE64 } =
@@ -66,7 +66,7 @@ function isCacheValue(value: unknown): value is CacheHandlerValue {
  */
 class HandlerConfig {
   buildId: string;
-  storage: Storage;
+  storage: HandlerStorage;
   /** Whether cache entries are Brotli-compressed. */
   compress: boolean;
   /** Whether Buffers in cache entries are stored as base64. */
@@ -74,7 +74,7 @@ class HandlerConfig {
 
   constructor(
     buildId: string,
-    storage: Storage,
+    storage: HandlerStorage,
     compress: boolean,
     base64: boolean,
   ) {
