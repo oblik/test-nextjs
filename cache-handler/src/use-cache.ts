@@ -10,24 +10,14 @@ import {
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { isArrayBuffer } from "node:util/types";
 import { decode, encode } from "./compress";
 import { replaceBuffers, reviveBuffers } from "./reviveBuffers";
 import { FsStorage } from "./storage/fs";
 import type { Storage } from "./storage/types";
 
-function isStoredEntry(
-  value: unknown,
-): value is CacheEntry & { value: Buffer } {
-  // @ts-expect-error test
-  console.log("---------- THE CHECK", value.value, isArrayBuffer(value.value));
-  return Boolean(
-    value &&
-    typeof value === "object" &&
-    "value" in value &&
-    isArrayBuffer(value.value),
-  );
-}
+const debug = process.env.NEXT_CACHE_S3_DEBUG
+  ? console.debug.bind(console, "[next-cache-s3]:")
+  : undefined;
 
 export class Handler implements CacheHandler {
   buildId: string;
@@ -58,7 +48,7 @@ export class Handler implements CacheHandler {
   }
 
   async refreshTags() {
-    console.log("refreshing tags");
+    debug?.("refreshing tags");
     return;
   }
 
@@ -71,9 +61,11 @@ export class Handler implements CacheHandler {
     const pendingPromise = this.pendingSets.get(filename);
     if (pendingPromise) return pendingPromise;
 
-    console.log("--------- GETTING FROM STORAGE");
     const body = await this.storage.get(filename);
-    if (!body) return undefined;
+    if (!body) {
+      debug?.(`get ${filename}: no content`);
+      return undefined;
+    }
 
     const jsonString = this.options.compress
       ? await decode(body)
@@ -81,13 +73,15 @@ export class Handler implements CacheHandler {
     let json = JSON.parse(jsonString);
 
     if (!json || typeof json !== "object" || !("value" in json)) {
+      debug?.(`get ${filename}: missing value in JSON`);
       return undefined;
     }
 
     json = reviveBuffers(json);
 
-    console.log(" ---------------- RESULT", json);
-    return { ...json, value: streamFromBuffer(json.value) };
+    const result = { ...json, value: streamFromBuffer(json.value) };
+    debug?.(`get ${filename}: returning cached value`);
+    return result;
   }
 
   async set(
@@ -121,16 +115,17 @@ export class Handler implements CacheHandler {
         ? await encode(json)
         : Buffer.from(json, "utf-8");
 
-      console.log("----------- SETTING", entry, body);
       await this.storage.put(filename, body);
+      debug?.(`set ${filename}: written to storage`);
     } finally {
       resolve!(entry);
       this.pendingSets.delete(filename);
+      debug?.(`set ${filename}: deleted pending promise`);
     }
   }
 
   async getExpiration(tags: string[]): Promise<Timestamp> {
-    console.log("getExpiration");
+    debug?.("getExpiration");
     return 0;
   }
 
@@ -138,7 +133,7 @@ export class Handler implements CacheHandler {
     tags: string[],
     durations?: { expire?: number },
   ): Promise<void> {
-    console.log(tags, durations);
+    debug?.("updateTags", tags, durations);
   }
 
   // Util methods
