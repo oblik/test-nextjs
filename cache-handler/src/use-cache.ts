@@ -17,42 +17,6 @@ const debug = process.env.NEXT_CACHE_S3_DEBUG
   ? console.debug.bind(console, "[next-cache-s3]:")
   : undefined;
 
-export const hasExpiredTags = (
-  handlerTags: TagsManifest[string],
-  tags: string[],
-  createdAt: Timestamp,
-) => {
-  const now = Date.now();
-
-  for (const tag of tags) {
-    const entry = handlerTags[tag];
-
-    const expiredAt = entry?.expired;
-    if (typeof expiredAt !== "number") continue;
-
-    if (createdAt <= expiredAt && expiredAt <= now) return true;
-  }
-
-  return false;
-};
-
-export const hasStaledTags = (
-  handlerTags: TagsManifest[string],
-  tags: string[],
-  createdAt: Timestamp,
-) => {
-  for (const tag of tags) {
-    const entry = handlerTags[tag];
-
-    const staledAt = entry?.staled;
-    if (typeof staledAt !== "number") continue;
-
-    if (createdAt <= staledAt) return true;
-  }
-
-  return false;
-};
-
 export class Handler implements CacheHandler {
   buildId: string;
   storage: HandlerStorage;
@@ -130,16 +94,14 @@ export class Handler implements CacheHandler {
 
     const entry: CacheEntry = { ...json, value: streamFromBuffer(json.value) };
 
-    if (this.tagEntries) {
-      if (hasExpiredTags(this.tagEntries, entry.tags, entry.timestamp)) {
-        debug?.(`get ${filename}: had an expired tag`);
-        return undefined;
-      }
+    if (this.hasExpiredTags(entry.tags, entry.timestamp)) {
+      debug?.(`get ${filename}: had an expired tag`);
+      return undefined;
+    }
 
-      if (hasStaledTags(this.tagEntries, entry.tags, entry.timestamp)) {
-        debug?.(`get ${filename}: had a staled tag`);
-        entry.revalidate = -1;
-      }
+    if (this.hasStaledTags(entry.tags, entry.timestamp)) {
+      debug?.(`get ${filename}: had a staled tag`);
+      entry.revalidate = -1;
     }
 
     debug?.(`get ${filename}: returning cached entry`, entry);
@@ -220,14 +182,40 @@ export class Handler implements CacheHandler {
     await this.tags.putTags(this.options.name, tagsCopy);
   }
 
-  // Util methods
-
-  keyToFilename(cacheKey: string) {
+  protected keyToFilename(cacheKey: string) {
     const keyHash = createHash("md5").update(cacheKey).digest("hex");
     let filename = `${keyHash}.json`;
 
     if (this.options.compress) filename += ".br";
 
     return filename;
+  }
+
+  protected hasExpiredTags(tags: string[], createdAt: Timestamp) {
+    const now = Date.now();
+
+    for (const tag of tags) {
+      const entry = this.tagEntries?.[tag];
+
+      const expiredAt = entry?.expired;
+      if (typeof expiredAt !== "number") continue;
+
+      if (createdAt <= expiredAt && expiredAt <= now) return true;
+    }
+
+    return false;
+  }
+
+  protected hasStaledTags(tags: string[], createdAt: Timestamp) {
+    for (const tag of tags) {
+      const entry = this.tagEntries?.[tag];
+
+      const staledAt = entry?.staled;
+      if (typeof staledAt !== "number") continue;
+
+      if (createdAt <= staledAt) return true;
+    }
+
+    return false;
   }
 }
