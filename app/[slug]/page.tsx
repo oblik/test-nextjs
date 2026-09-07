@@ -7,10 +7,7 @@ async function getData(slug: string) {
   cacheTag("my-tag");
   cacheLife("minutes");
 
-  console.log(
-    "[getData] cache miss/revalidate — doing expensive work at",
-    new Date().toISOString(),
-  );
+  console.log("[getData] cache miss; doing work", new Date().toISOString());
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   return {

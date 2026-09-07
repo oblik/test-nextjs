@@ -1,3 +1,7 @@
-import { createUseCacheHandler } from "./dist/use-cache.js";
+// @ts-check
+import { createHandler, Handler } from "./dist/use-cache.js";
 
-export default createUseCacheHandler();
+export default createHandler(Handler, {
+  compress: false,
+  base64: false,
+});

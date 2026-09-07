@@ -5,6 +5,7 @@
     "moduleResolution": "node10",
     "noEmit": false,
     "outDir": "dist",
+    "declaration": true,
     "rootDir": "src",
     "lib": ["es2022"],
     "target": "es2022"

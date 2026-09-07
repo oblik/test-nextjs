@@ -1,6 +1,6 @@
 import type { ListObjectsV2CommandOutput } from '@aws-sdk/client-s3'
 import { S3, S3ServiceException } from '@aws-sdk/client-s3'
-import type { PutOptions, Storage } from './types'
+import type { Storage } from './types'
 
 /** Stores cache entries as objects in an S3 bucket. */
 export class S3Storage implements Storage {
@@ -28,12 +28,11 @@ export class S3Storage implements Storage {
 		return Buffer.from(await data.Body.transformToByteArray())
 	}
 
-	async put(key: string, body: Buffer, options?: PutOptions): Promise<void> {
+	async put(key: string, body: Buffer): Promise<void> {
 		await this.client.putObject({
 			Bucket: this.bucket,
 			Key: key,
 			Body: body,
-			CacheControl: options?.maxAge ? `max-age=${options.maxAge}` : undefined,
 		})
 	}
 
