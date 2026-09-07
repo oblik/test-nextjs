@@ -7,9 +7,11 @@ export async function getData() {
   cacheTag("my-tag");
   cacheLife("days");
 
-  console.log("[getData] cache miss; doing work");
+  const callId = ++callCount;
+
+  console.log(`[getData] call #${callId} 🟢`);
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  callCount++;
+  console.log(`[getData] call #${callId} 🔴`);
 
   return {
     finishTime: new Date().toISOString(),
