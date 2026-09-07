@@ -1,21 +1,7 @@
-import { cacheLife, cacheTag, revalidateTag } from "next/cache";
+import { getData } from "@/components/getData";
+import { revalidateTag } from "next/cache";
 
-export const dynamic = "force-dynamic";
-
-async function getData(slug: string) {
-  "use cache";
-  cacheTag("my-tag");
-  cacheLife("minutes");
-
-  console.log("[getData] cache miss; doing work", new Date().toISOString());
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  return {
-    slug,
-    generatedAt: new Date().toISOString(),
-    random: Math.random(),
-  };
-}
+export const instant = false;
 
 export default async function Page({
   params,
@@ -26,6 +12,7 @@ export default async function Page({
   console.log("[Page] rendering at", new Date().toISOString());
 
   const data = await getData(slug);
+  console.log("[Page] done waiting for data");
 
   return (
     <div>

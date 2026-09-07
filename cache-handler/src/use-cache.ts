@@ -19,6 +19,43 @@ const debug = process.env.NEXT_CACHE_S3_DEBUG
   ? console.debug.bind(console, "[next-cache-s3]:")
   : undefined;
 
+export interface TagManifestEntry {
+  staled?: number;
+  expired?: number;
+}
+
+// We share the tags manifest between the "use cache" handlers and the previous
+// file-system cache.
+export const tagsManifest = new Map<string, TagManifestEntry>();
+
+export const hasExpiredTags = (tags: string[], createdAt: Timestamp) => {
+  const now = Date.now();
+
+  for (const tag of tags) {
+    const entry = tagsManifest.get(tag);
+
+    const expiredAt = entry?.expired;
+    if (typeof expiredAt !== "number") continue;
+
+    if (createdAt <= expiredAt && expiredAt <= now) return true;
+  }
+
+  return false;
+};
+
+export const hasStaledTags = (tags: string[], createdAt: Timestamp) => {
+  for (const tag of tags) {
+    const entry = tagsManifest.get(tag);
+
+    const staledAt = entry?.staled;
+    if (typeof staledAt !== "number") continue;
+
+    if (createdAt <= staledAt) return true;
+  }
+
+  return false;
+};
+
 export class Handler implements CacheHandler {
   buildId: string;
   storage: Storage;
@@ -87,9 +124,20 @@ export class Handler implements CacheHandler {
 
     json = reviveBuffers(json);
 
-    const result = { ...json, value: streamFromBuffer(json.value) };
-    debug?.(`get ${filename}: returning cached value`);
-    return result;
+    const entry: CacheEntry = { ...json, value: streamFromBuffer(json.value) };
+
+    if (hasExpiredTags(entry.tags, entry.timestamp)) {
+      debug?.(`get ${filename}: had an expired tag`);
+      return undefined;
+    }
+
+    if (hasStaledTags(entry.tags, entry.timestamp)) {
+      debug?.(`get ${filename}: had a staled tag`);
+      entry.revalidate = -1;
+    }
+
+    debug?.(`get ${filename}: returning cached entry`, entry);
+    return entry;
   }
 
   /**
@@ -141,7 +189,29 @@ export class Handler implements CacheHandler {
     tags: string[],
     durations?: { expire?: number },
   ): Promise<void> {
-    debug?.("updateTags", tags, durations);
+    const now = Math.round(performance.timeOrigin + performance.now());
+
+    for (const tag of tags) {
+      const existingEntry = tagsManifest.get(tag) || {};
+      const newEntry: TagManifestEntry = { ...existingEntry };
+
+      if (durations) {
+        newEntry.staled = now;
+
+        if (durations.expire !== undefined) {
+          newEntry.expired = now + durations.expire * 1000;
+        }
+      } else {
+        newEntry.expired = now;
+      }
+
+      debug?.(`updateTags (${tag})`, { durations, newEntry });
+      tagsManifest.set(tag, newEntry);
+    }
+
+    /**
+     * @todo persist tags to storage
+     */
   }
 
   // Util methods
