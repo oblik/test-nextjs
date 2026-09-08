@@ -1,4 +1,4 @@
-import { createLogger } from "./createLogger";
+import { createLogger } from "./debug";
 import type { HandlerStorage } from "./storage/types";
 
 export interface TagsManifest {

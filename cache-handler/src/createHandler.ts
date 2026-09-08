@@ -1,8 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { IS_DEBUG } from "./createLogger";
 import { FsStorage } from "./storage/fs";
-import { FsStorageSlow } from "./storage/FsStorageSlow";
 import type { HandlerStorage } from "./storage/types";
 import { TagsManager } from "./TagsManager";
 import type { Handler } from "./use-cache";
@@ -11,8 +9,6 @@ let root: string;
 let buildId: string;
 let storage: HandlerStorage;
 let tagsManager: TagsManager;
-
-const Storage = IS_DEBUG ? FsStorageSlow : FsStorage;
 
 export function createHandler(
   HandlerClass: typeof Handler,
@@ -41,7 +37,7 @@ export function createHandler(
     if (!buildId) throw new Error("Build ID missing");
   }
 
-  if (!storage) storage = new Storage(path.join(root, "cache/cache-handler"));
+  if (!storage) storage = new FsStorage(path.join(root, "cache/cache-handler"));
 
   if (!tagsManager) {
     tagsManager = new TagsManager(

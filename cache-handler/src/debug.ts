@@ -14,3 +14,15 @@ export function createLogger(scope: string) {
 }
 
 export type Logger = ReturnType<typeof createLogger>;
+
+export const delay = IS_DEBUG
+  ? (time: number, jitter: number, log?: Logger) => {
+      const delay = Math.round(time + Math.random() * jitter);
+      return new Promise<void>((resolve) =>
+        setTimeout(() => {
+          log?.(`waited ${delay}ms`);
+          resolve();
+        }, delay),
+      );
+    }
+  : undefined;

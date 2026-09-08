@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
-import { createLogger, Logger } from "../createLogger";
+import { createLogger, delay, Logger } from "../debug";
 import { isErrno } from "../isErrno";
 import type { HandlerStorage } from "./types";
 
@@ -44,6 +44,7 @@ export class FsStorage implements HandlerStorage {
     try {
       const path = this.pathFor(key.split("/"));
       this.log?.(`reading ${path}`);
+      await delay?.(150, 50, this.log);
       return await readFile(path);
     } catch (error) {
       if (isErrno(error, "ENOENT")) return null;
@@ -63,6 +64,7 @@ export class FsStorage implements HandlerStorage {
 
     try {
       this.log?.(`writing ${filepath}`);
+      await delay?.(200, 100, this.log);
       await writeFile(tmp, body);
       await rename(tmp, filepath);
     } catch (error) {
