@@ -10,13 +10,10 @@ import {
 } from "next/dist/server/stream-utils/node-web-streams-helper";
 import { createHash } from "node:crypto";
 import { decode, encode } from "./compress";
+import { createLogger, type Logger } from "./createLogger";
 import { replaceBuffers, reviveBuffers } from "./reviveBuffers";
 import type { HandlerStorage } from "./storage/types";
 import type { TagsManager, TagsManifest } from "./TagsManager";
-
-const debug = process.env.NEXT_CACHE_S3_DEBUG
-  ? console.debug.bind(console, "[next-cache-s3]:")
-  : undefined;
 
 type LRUCacheEntry = {
   entry: Omit<CacheEntry, "value">;
@@ -46,6 +43,8 @@ export class Handler implements CacheHandler {
    */
   pendingSets = new Map<string, Promise<CacheEntry>>();
 
+  log: Logger;
+
   constructor({
     buildId,
     storage,
@@ -62,12 +61,14 @@ export class Handler implements CacheHandler {
     this.tagsManager = tagsManager;
     this.options = options;
 
+    this.log = createLogger(this.options.name);
+
     if (this.options.lruSize) {
-      debug?.(`creating LRU cache with size ${this.options.lruSize} bytes`);
+      this.log?.(`creating LRU cache with size ${this.options.lruSize} bytes`);
       this.lruCache = new LRUCache(
         this.options.lruSize,
         (v) => v.size,
-        debug ? (k) => debug(`evicting ${k} from LRU cache`) : undefined,
+        this.log ? (k: string) => this.log?.(`LRU: ${k} evicted`) : undefined,
       );
     }
   }
@@ -84,17 +85,17 @@ export class Handler implements CacheHandler {
 
     const entry = await this.findEntry(filename);
     if (!entry) {
-      debug?.(`get ${filename}: not found anywhere`);
+      this.log?.(`get(${filename}): not found anywhere`);
       return undefined;
     }
 
     if (this.hasExpiredTags(entry.tags, entry.timestamp)) {
-      debug?.(`get ${filename}: had an expired tag`);
+      this.log?.(`get(${filename}): had an expired tag`);
       return undefined;
     }
 
     if (this.hasStaledTags(entry.tags, entry.timestamp)) {
-      debug?.(`get ${filename}: had a staled tag`);
+      this.log?.(`get(${filename}): had a staled tag`);
       entry.revalidate = -1;
     }
 
@@ -106,7 +107,7 @@ export class Handler implements CacheHandler {
     if (pendingPromise) {
       const entry = await pendingPromise;
 
-      debug?.(`get ${filename}: copying pending entry stream`);
+      this.log?.(`findEntry(${filename}): copying from pending stream`);
       const [streamCopy, value] = entry.value.tee();
       entry.value = streamCopy;
 
@@ -116,7 +117,7 @@ export class Handler implements CacheHandler {
     if (this.lruCache) {
       const cachedEntry = this.lruCache.get(filename);
       if (cachedEntry) {
-        debug?.(`get ${filename}: returning from LRU cache`);
+        this.log?.(`findEntry(${filename}): returned from LRU cache`);
         return {
           ...cachedEntry.entry,
           value: streamFromBuffer(cachedEntry.value),
@@ -124,10 +125,10 @@ export class Handler implements CacheHandler {
       }
     }
 
-    debug?.(`get ${filename}: loading from storage`);
+    this.log?.(`findEntry(${filename}): loading from storage`);
     const body = await this.storage.get(filename);
     if (!body) {
-      debug?.(`get ${filename}: no file content`);
+      this.log?.(`findEntry(${filename}): no file content`);
       return undefined;
     }
 
@@ -137,7 +138,7 @@ export class Handler implements CacheHandler {
     let json = JSON.parse(jsonString);
 
     if (!json || typeof json !== "object" || !("value" in json)) {
-      debug?.(`get ${filename}: missing value in JSON`);
+      this.log?.(`findEntry(${filename}): missing value in JSON`);
       return undefined;
     }
 
@@ -171,8 +172,8 @@ export class Handler implements CacheHandler {
       if (this.lruCache) {
         const size = value.byteLength;
         this.lruCache.set(filename, { entry: metadata, value, size });
-        debug?.(
-          `set ${filename}: saved ${size} bytes in LRU cache (${this.lruCache.currentSize} bytes total)`,
+        this.log?.(
+          `set(${filename}): saved ${size} bytes in LRU cache (${this.lruCache.currentSize} bytes total)`,
         );
       }
 
@@ -183,15 +184,14 @@ export class Handler implements CacheHandler {
         : Buffer.from(json, "utf-8");
 
       await this.storage.put(filename, body);
-      debug?.(`set ${filename}: written to storage`);
+      this.log?.(`set(${filename}): written to storage`);
     } finally {
       this.pendingSets.delete(filename);
-      debug?.(`set ${filename}: deleted pending promise`);
+      this.log?.(`set(${filename}): deleted pending promise`);
     }
   }
 
   async getExpiration(tags: string[]): Promise<Timestamp> {
-    // debug?.("getExpiration");
     return 0;
   }
 
@@ -199,7 +199,7 @@ export class Handler implements CacheHandler {
     tags: string[],
     durations?: { expire?: number },
   ): Promise<void> {
-    debug?.("updateTags:", tags, durations);
+    this.log?.("updateTags:", tags, durations);
     const now = Date.now();
     const tagsCopy = { ...this.tags };
 
@@ -224,8 +224,6 @@ export class Handler implements CacheHandler {
   }
 
   protected keyToFilename(cacheKey: string) {
-    debugger;
-
     // By default, Next makes the build ID part of the cache key, so that cache
     // keys can vary across deploys, even if the cached function's code and
     // arguments stay the same. By removing the ID, we make the keys constant
