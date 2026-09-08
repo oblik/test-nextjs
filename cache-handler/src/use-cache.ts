@@ -3,6 +3,7 @@ import type {
   CacheHandler,
   Timestamp,
 } from "next/dist/server/lib/cache-handlers/types";
+import { LRUCache } from "next/dist/server/lib/lru-cache";
 import {
   streamFromBuffer,
   streamToBuffer,
@@ -17,16 +18,25 @@ const debug = process.env.NEXT_CACHE_S3_DEBUG
   ? console.debug.bind(console, "[next-cache-s3]:")
   : undefined;
 
+type LRUCacheEntry = {
+  entry: Omit<CacheEntry, "value">;
+  value: Buffer;
+  size: number;
+};
+
 export class Handler implements CacheHandler {
   buildId: string;
   storage: HandlerStorage;
   tagsManager: TagsManager;
   options: {
     name: string;
+    lruSize: number;
     sticky: boolean;
     compress: boolean;
     base64: boolean;
   };
+
+  lruCache?: LRUCache<LRUCacheEntry>;
 
   tags?: Readonly<TagsManifest>;
 
@@ -51,10 +61,18 @@ export class Handler implements CacheHandler {
     this.storage = storage;
     this.tagsManager = tagsManager;
     this.options = options;
+
+    if (this.options.lruSize) {
+      debug?.(`creating LRU cache with size ${this.options.lruSize} bytes`);
+      this.lruCache = new LRUCache(
+        this.options.lruSize,
+        (v) => v.size,
+        debug ? (k) => debug(`evicting ${k} from LRU cache`) : undefined,
+      );
+    }
   }
 
   async refreshTags() {
-    debug?.("refreshing tags");
     this.tags = await this.tagsManager.getTags();
   }
 
@@ -64,6 +82,26 @@ export class Handler implements CacheHandler {
   ): Promise<undefined | CacheEntry> {
     const filename = this.keyToFilename(cacheKey);
 
+    const entry = await this.findEntry(filename);
+    if (!entry) {
+      debug?.(`get ${filename}: not found anywhere`);
+      return undefined;
+    }
+
+    if (this.hasExpiredTags(entry.tags, entry.timestamp)) {
+      debug?.(`get ${filename}: had an expired tag`);
+      return undefined;
+    }
+
+    if (this.hasStaledTags(entry.tags, entry.timestamp)) {
+      debug?.(`get ${filename}: had a staled tag`);
+      entry.revalidate = -1;
+    }
+
+    return entry;
+  }
+
+  async findEntry(filename: string): Promise<CacheEntry | undefined> {
     const pendingPromise = this.pendingSets.get(filename);
     if (pendingPromise) {
       const entry = await pendingPromise;
@@ -75,9 +113,21 @@ export class Handler implements CacheHandler {
       return { ...entry, value };
     }
 
+    if (this.lruCache) {
+      const cachedEntry = this.lruCache.get(filename);
+      if (cachedEntry) {
+        debug?.(`get ${filename}: returning from LRU cache`);
+        return {
+          ...cachedEntry.entry,
+          value: streamFromBuffer(cachedEntry.value),
+        };
+      }
+    }
+
+    debug?.(`get ${filename}: loading from storage`);
     const body = await this.storage.get(filename);
     if (!body) {
-      debug?.(`get ${filename}: no content`);
+      debug?.(`get ${filename}: no file content`);
       return undefined;
     }
 
@@ -93,26 +143,9 @@ export class Handler implements CacheHandler {
 
     json = reviveBuffers(json);
 
-    const entry: CacheEntry = { ...json, value: streamFromBuffer(json.value) };
-
-    if (this.hasExpiredTags(entry.tags, entry.timestamp)) {
-      debug?.(`get ${filename}: had an expired tag`);
-      return undefined;
-    }
-
-    if (this.hasStaledTags(entry.tags, entry.timestamp)) {
-      debug?.(`get ${filename}: had a staled tag`);
-      entry.revalidate = -1;
-    }
-
-    debug?.(`get ${filename}: returning cached entry`, entry);
-    return entry;
+    return { ...json, value: streamFromBuffer(json.value) };
   }
 
-  /**
-   * @todo Immediately when a set is made, add the entry to the memory cache, to
-   * avoid having to download it and make unnecessary HTTP roundtrips.
-   */
   async set(
     cacheKey: string,
     pendingEntry: Promise<CacheEntry>,
@@ -129,11 +162,19 @@ export class Handler implements CacheHandler {
        * @see https://github.com/vercel/next.js/blob/6ef6e29db5ec78704af1ea05a16b233bb7faac7c/packages/next/src/server/lib/cache-handlers/default.ts#L177
        */
       const { value: originalStream, ...metadata } = entry;
-      const [streamCopy, value] = originalStream.tee();
+      const [streamCopy, valueStream] = originalStream.tee();
       entry.value = streamCopy;
 
-      const valueBuffer = await streamToBuffer(value);
-      const storedValue = { value: valueBuffer, ...metadata };
+      const value = await streamToBuffer(valueStream);
+      const storedValue = { ...metadata, value };
+
+      if (this.lruCache) {
+        const size = value.byteLength;
+        this.lruCache.set(filename, { entry: metadata, value, size });
+        debug?.(
+          `set ${filename}: saved ${size} bytes in LRU cache (${this.lruCache.currentSize} bytes total)`,
+        );
+      }
 
       const replacer = this.options.base64 ? replaceBuffers : undefined;
       const json = JSON.stringify(storedValue, replacer);
@@ -150,7 +191,7 @@ export class Handler implements CacheHandler {
   }
 
   async getExpiration(tags: string[]): Promise<Timestamp> {
-    debug?.("getExpiration");
+    // debug?.("getExpiration");
     return 0;
   }
 
@@ -158,8 +199,8 @@ export class Handler implements CacheHandler {
     tags: string[],
     durations?: { expire?: number },
   ): Promise<void> {
+    debug?.("updateTags:", tags, durations);
     const now = Date.now();
-
     const tagsCopy = { ...this.tags };
 
     for (const tag of tags) {
@@ -176,7 +217,6 @@ export class Handler implements CacheHandler {
         newEntry.expired = now;
       }
 
-      debug?.(`updateTags (${tag})`, { durations, newEntry });
       tagsCopy[tag] = newEntry;
     }
 

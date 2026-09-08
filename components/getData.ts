@@ -2,7 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 let callCount = 0;
 
-export async function getData() {
+export async function getData(param?: string) {
   "use cache";
   cacheTag("my-tag");
   cacheLife("days");
@@ -16,5 +16,6 @@ export async function getData() {
   return {
     finishTime: new Date().toISOString(),
     callCount,
+    param,
   };
 }

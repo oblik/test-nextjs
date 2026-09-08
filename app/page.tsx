@@ -24,15 +24,24 @@ export default async function Page() {
     2,
   );
 
-  console.log(`[Page] render #${renderId} 🔴`);
+  console.log(`[Page] render #${renderId} 🔴\n`);
 
   return (
     <div>
       <pre>{json}</pre>
+
       <button
         onClick={async () => {
           "use server";
-          console.log("[Page] revalidateTag");
+          console.log(await getData(Math.random().toString()));
+        }}
+      >
+        getData()
+      </button>
+
+      <button
+        onClick={async () => {
+          "use server";
           revalidateTag("my-tag", "minutes");
         }}
       >
@@ -42,7 +51,6 @@ export default async function Page() {
       <button
         onClick={async () => {
           "use server";
-          console.log("[Page] updateTag");
           updateTag("my-tag");
         }}
       >
