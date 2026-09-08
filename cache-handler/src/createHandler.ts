@@ -12,7 +12,17 @@ let tagsManager: TagsManager;
 
 export function createHandler(
   HandlerClass: typeof Handler,
-  options: Handler["options"],
+  options: {
+    name: string;
+    lruSize: number;
+    sticky: boolean;
+    compress: boolean;
+    base64: boolean;
+    tags?: {
+      stale: number;
+      expire: number;
+    };
+  },
 ): Handler | undefined {
   // Next initializes during build, where it makes no sense to create handlers,
   // since there's no `BUILD_ID` file and no traffic to serve.
@@ -29,7 +39,13 @@ export function createHandler(
 
   if (!storage) storage = new FsStorage(path.join(root, "cache/cache-handler"));
 
-  if (!tagsManager) tagsManager = new TagsManager(storage);
+  if (!tagsManager) {
+    tagsManager = new TagsManager(
+      storage,
+      options.tags?.stale ?? 500,
+      options.tags?.expire ?? 1000,
+    );
+  }
 
   return new HandlerClass({ buildId, storage, tagsManager, options });
 }
