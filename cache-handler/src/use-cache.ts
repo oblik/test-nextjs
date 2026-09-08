@@ -134,16 +134,27 @@ export class Handler implements CacheHandler {
     const jsonString = this.options.compress
       ? await decode(body)
       : body.toString("utf-8");
-    let json = JSON.parse(jsonString);
+    const json = JSON.parse(jsonString) as unknown;
 
     if (!json || typeof json !== "object" || !("value" in json)) {
       this.log?.(`findEntry(${filename}): missing value in JSON`);
       return undefined;
     }
 
-    json = reviveBuffers(json);
+    const typedJson = reviveBuffers(json) as Omit<CacheEntry, "value"> & {
+      value: Buffer;
+    };
 
-    return { ...json, value: streamFromBuffer(json.value) };
+    if (this.lruCache) {
+      const { value, ...metadata } = typedJson;
+      const size = value.byteLength;
+      this.lruCache.set(filename, { entry: metadata, value, size });
+      this.log?.(
+        `get(${filename}): saved ${size} bytes in LRU cache (${this.lruCache.currentSize} bytes total)`,
+      );
+    }
+
+    return { ...typedJson, value: streamFromBuffer(typedJson.value) };
   }
 
   async set(

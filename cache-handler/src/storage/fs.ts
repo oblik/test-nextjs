@@ -20,8 +20,8 @@ const TMP_SUFFIX = ".tmp";
  * path below `root`. Meant for local debugging, where there's no S3 bucket.
  */
 export class FsStorage implements HandlerStorage {
-  root: string;
-  log: Logger;
+  protected root: string;
+  protected log: Logger;
 
   constructor(root: string) {
     this.root = root;
