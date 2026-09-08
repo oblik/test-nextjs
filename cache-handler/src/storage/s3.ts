@@ -1,11 +1,13 @@
 import type { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3";
 import { S3, S3ServiceException } from "@aws-sdk/client-s3";
+import { createLogger, type Logger } from "../createLogger";
 import type { HandlerStorage } from "./types";
 
 /** Stores cache entries as objects in an S3 bucket. */
 export class S3Storage implements HandlerStorage {
   bucket: string;
   client: S3;
+  log: Logger;
 
   constructor({ bucket, region }: { bucket: string; region: string }) {
     this.bucket = bucket;
@@ -13,9 +15,11 @@ export class S3Storage implements HandlerStorage {
       region,
       forcePathStyle: true,
     });
+    this.log = createLogger("S3Storage");
   }
 
   async get(key: string): Promise<Buffer | null> {
+    this.log?.(`get: ${key}`);
     const data = await this.client
       .getObject({ Bucket: this.bucket, Key: key })
       .catch((error) => {
@@ -29,6 +33,7 @@ export class S3Storage implements HandlerStorage {
   }
 
   async put(key: string, body: Buffer): Promise<void> {
+    this.log?.(`put: ${key}`);
     await this.client.putObject({
       Bucket: this.bucket,
       Key: key,

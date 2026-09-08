@@ -8,7 +8,8 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
+import { createLogger, Logger } from "../createLogger";
 import { isErrno } from "../isErrno";
 import type { HandlerStorage } from "./types";
 
@@ -20,9 +21,11 @@ const TMP_SUFFIX = ".tmp";
  */
 export class FsStorage implements HandlerStorage {
   root: string;
+  log: Logger;
 
   constructor(root: string) {
-    this.root = resolve(root);
+    this.root = root;
+    this.log = createLogger("FsStorage");
   }
 
   /**
@@ -39,7 +42,9 @@ export class FsStorage implements HandlerStorage {
 
   async get(key: string): Promise<Buffer | null> {
     try {
-      return await readFile(this.pathFor(key.split("/")));
+      const path = this.pathFor(key.split("/"));
+      this.log?.(`reading ${path}`);
+      return await readFile(path);
     } catch (error) {
       if (isErrno(error, "ENOENT")) return null;
       throw error;
@@ -57,6 +62,7 @@ export class FsStorage implements HandlerStorage {
     await mkdir(dirname(filepath), { recursive: true });
 
     try {
+      this.log?.(`writing ${filepath}`);
       await writeFile(tmp, body);
       await rename(tmp, filepath);
     } catch (error) {
@@ -118,6 +124,7 @@ export class FsStorage implements HandlerStorage {
         deleted.push([...dir, entry.name].join("/"));
       }
 
+      this.log?.(`deleting ${entryPath}`);
       await rm(entryPath, { recursive: true, force: true });
     }
 

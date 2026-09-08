@@ -61,7 +61,7 @@ export class Handler implements CacheHandler {
     this.tagsManager = tagsManager;
     this.options = options;
 
-    this.log = createLogger(this.options.name);
+    this.log = createLogger(`Handler/${this.options.name}`);
 
     if (this.options.lruSize) {
       this.log?.(`creating LRU cache with size ${this.options.lruSize} bytes`);
@@ -125,7 +125,6 @@ export class Handler implements CacheHandler {
       }
     }
 
-    this.log?.(`findEntry(${filename}): loading from storage`);
     const body = await this.storage.get(filename);
     if (!body) {
       this.log?.(`findEntry(${filename}): no file content`);
@@ -184,7 +183,6 @@ export class Handler implements CacheHandler {
         : Buffer.from(json, "utf-8");
 
       await this.storage.put(filename, body);
-      this.log?.(`set(${filename}): written to storage`);
     } finally {
       this.pendingSets.delete(filename);
       this.log?.(`set(${filename}): deleted pending promise`);
