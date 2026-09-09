@@ -217,13 +217,13 @@ export class Handler implements CacheHandler {
       const newEntry = { ...existingEntry };
 
       if (durations) {
-        newEntry.staled = now;
+        newEntry.stalesAt = now;
 
         if (durations.expire !== undefined) {
-          newEntry.expired = now + durations.expire * 1000;
+          newEntry.expiresAt = now + durations.expire * 1000;
         }
       } else {
-        newEntry.expired = now;
+        newEntry.expiresAt = now;
       }
 
       tagsCopy[tag] = newEntry;
@@ -271,7 +271,7 @@ export class Handler implements CacheHandler {
     for (const tag of tags) {
       const entry = this.tags?.[tag];
 
-      const expiredAt = entry?.expired;
+      const expiredAt = entry?.expiresAt;
       if (typeof expiredAt !== "number") continue;
 
       if (createdAt <= expiredAt && expiredAt <= now) return true;
@@ -284,7 +284,7 @@ export class Handler implements CacheHandler {
     for (const tag of tags) {
       const entry = this.tags?.[tag];
 
-      const staledAt = entry?.staled;
+      const staledAt = entry?.stalesAt;
       if (typeof staledAt !== "number") continue;
 
       if (createdAt <= staledAt) return true;

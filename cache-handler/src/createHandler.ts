@@ -19,8 +19,8 @@ export function createHandler(
     compress: boolean;
     base64: boolean;
     tags?: {
-      stale: number;
-      expire: number;
+      staleMs: number;
+      expireMs: number;
     };
   },
 ): Handler | undefined {
@@ -42,8 +42,8 @@ export function createHandler(
   if (!tagsManager) {
     tagsManager = new TagsManager(
       storage,
-      options.tags?.stale ?? 500,
-      options.tags?.expire ?? 1000,
+      options.tags?.staleMs ?? 500,
+      options.tags?.expireMs ?? 1000,
       10 * 1000,
     );
   }
