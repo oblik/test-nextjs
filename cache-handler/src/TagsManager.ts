@@ -55,11 +55,7 @@ export class TagsManager {
 
   async putTags(tags: TagsManifest) {
     this.updateManifest(tags);
-    const json = JSON.stringify(this.manifest);
-    const body = Buffer.from(json, "utf-8");
-
-    this.log?.("writing manifest");
-    await this.storage.put("tags-manifest.json", body);
+    this.scheduleUpdate();
   }
 
   protected async loadManifest() {
@@ -89,6 +85,7 @@ export class TagsManager {
   protected async updateManifest(tags: TagsManifest) {
     const now = Date.now();
     const newManifest = Object.assign({}, this.manifest || {}, tags);
+    let dirty = false;
 
     for (const tagName in newManifest) {
       const tag = newManifest[tagName];
@@ -97,9 +94,38 @@ export class TagsManager {
       if (msSinceStaled >= this.evictMs && msSinceExpired >= this.evictMs) {
         this.log?.(`evicting tag from manifest: ${tagName}`);
         delete newManifest[tagName];
+        dirty = true;
       }
     }
 
     this.manifest = newManifest;
+    if (dirty) this.scheduleUpdate();
   }
+
+  /**
+   * Prevents performing unnecessary updates by scheduling a single update at
+   * the end of the call stack. Otherwise, if you have multiple cache handlers
+   * registered, each one will try to update the tags manifest immediately,
+   * resulting in one update per handler.
+   */
+  protected scheduleUpdate() {
+    if (this.scheduledTimer) {
+      this.log?.("cancelling scheduled update");
+      clearTimeout(this.scheduledTimer);
+    }
+
+    this.log?.("scheduling update");
+
+    this.scheduledTimer = setTimeout(() => {
+      this.scheduledTimer = undefined;
+
+      const json = JSON.stringify(this.manifest);
+      const body = Buffer.from(json, "utf-8");
+
+      this.log?.("writing manifest");
+      this.storage.put("tags-manifest.json", body);
+    }, 0);
+  }
+
+  protected scheduledTimer?: NodeJS.Timeout;
 }
