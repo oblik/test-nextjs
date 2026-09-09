@@ -1,8 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "types": ["node"],
     "module": "commonjs",
     "moduleResolution": "node10",
+    "ignoreDeprecations": "5.0",
     "noEmit": false,
     "outDir": "dist",
     "declaration": true,
