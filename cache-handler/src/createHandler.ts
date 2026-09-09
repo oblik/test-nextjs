@@ -44,6 +44,7 @@ export function createHandler(
       storage,
       options.tags?.stale ?? 500,
       options.tags?.expire ?? 1000,
+      10 * 1000,
     );
   }
 

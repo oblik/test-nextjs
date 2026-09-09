@@ -1,3 +1,3 @@
-# Minimal Next.js repo for MREs.
+Test cases (@todo):
 
-Check the various different branches in the repo.
+- When the tags manifest loads, there's a pre-existing stale tag. The tags should get updated without explicitly getting mutated (revalidated) by the user code.

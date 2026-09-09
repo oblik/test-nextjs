@@ -3,7 +3,16 @@ import type { HandlerStorage } from "./storage/types";
 
 export interface TagsManifest {
   [tagName: string]: Readonly<{
+    /**
+     * Timestamp at which the resource tagged with this tag becomes expired.
+     * @todo Rename to `expiresAt`?
+     */
     expired?: number;
+
+    /**
+     * Timestamp at which the resource tagged with this tag becomes stale.
+     * @todo Rename to `stalesAt`?
+     */
     staled?: number;
   }>;
 }
@@ -17,8 +26,15 @@ export class TagsManager {
 
   constructor(
     protected storage: HandlerStorage,
-    protected stale: number,
-    protected expire: number,
+    protected stale: number, // rename to staleMs
+    protected expire: number, // rename to expireMs
+    /**
+     * Time a tag is allowed to stay in the manifest after both its `expired`
+     * and `staled` have passed. Tags that have stayed for e.g. a few hours have
+     * probably triggered every revalidation necessary and can be removed, to
+     * reduce the size of the manifest.
+     */
+    protected evictMs: number,
   ) {}
 
   async getTags() {
@@ -43,12 +59,12 @@ export class TagsManager {
     return this.loadManifest();
   }
 
-  /**
-   * @todo Add cleanup of tags older than X hours/days, to optimize space
-   */
   async putTags(tags: TagsManifest) {
-    const json = JSON.stringify(tags);
+    this.updateManifest(tags);
+    const json = JSON.stringify(this.manifest);
     const body = Buffer.from(json, "utf-8");
+
+    this.log?.("writing manifest");
     await this.storage.put("tags-manifest.json", body);
   }
 
@@ -56,7 +72,8 @@ export class TagsManager {
     if (this.readPromise) return this.readPromise;
 
     this.readPromise = this.fetchManifest();
-    this.manifest = await this.readPromise;
+    const manifest = await this.readPromise;
+    if (manifest) this.updateManifest(manifest);
     this.readPromise = undefined;
     return this.manifest;
   }
@@ -73,5 +90,22 @@ export class TagsManager {
     this.loadedAt = Date.now();
     const jsonString = body.toString("utf-8");
     return JSON.parse(jsonString);
+  }
+
+  protected async updateManifest(tags: TagsManifest) {
+    const now = Date.now();
+    const newManifest = Object.assign({}, this.manifest || {}, tags);
+
+    for (const tagName in newManifest) {
+      const tag = newManifest[tagName];
+      const msSinceStaled = tag.staled ? now - tag.staled : Infinity;
+      const msSinceExpired = tag.expired ? now - tag.expired : Infinity;
+      if (msSinceStaled >= this.evictMs && msSinceExpired >= this.evictMs) {
+        this.log?.(`evicting tag from manifest: ${tagName}`);
+        delete newManifest[tagName];
+      }
+    }
+
+    this.manifest = newManifest;
   }
 }
