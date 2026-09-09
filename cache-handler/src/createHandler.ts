@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { CACHE_S3_BUCKET, CACHE_S3_REGION } from "./config";
 import { FsStorage } from "./storage/fs";
+import { S3Storage } from "./storage/s3";
 import type { HandlerStorage } from "./storage/types";
 import { TagsManager } from "./TagsManager";
 import type { Handler } from "./use-cache";
@@ -37,7 +39,13 @@ export function createHandler(
     if (!buildId) throw new Error("Build ID missing");
   }
 
-  if (!storage) storage = new FsStorage(path.join(root, "cache/cache-handler"));
+  if (!storage) {
+    if (CACHE_S3_BUCKET && CACHE_S3_REGION) {
+      storage = new S3Storage(CACHE_S3_BUCKET, CACHE_S3_REGION);
+    } else {
+      storage = new FsStorage(path.join(root, "cache/cache-handler"));
+    }
+  }
 
   if (!tagsManager) {
     tagsManager = new TagsManager(

@@ -1,21 +1,19 @@
 import type { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3";
 import { S3, S3ServiceException } from "@aws-sdk/client-s3";
-import { createLogger, type Logger } from "../debug";
+import { createLogger } from "../debug";
 import type { HandlerStorage } from "./types";
 
 /** Stores cache entries as objects in an S3 bucket. */
 export class S3Storage implements HandlerStorage {
-  bucket: string;
+  log = createLogger("S3Storage");
   client: S3;
-  log: Logger;
 
-  constructor({ bucket, region }: { bucket: string; region: string }) {
+  constructor(
+    protected bucket: string,
+    protected region: string,
+  ) {
     this.bucket = bucket;
-    this.client = new S3({
-      region,
-      forcePathStyle: true,
-    });
-    this.log = createLogger("S3Storage");
+    this.client = new S3({ region, forcePathStyle: true });
   }
 
   async get(key: string): Promise<Buffer | null> {
@@ -61,6 +59,7 @@ export class S3Storage implements HandlerStorage {
 
     if (!keys.length) return keys;
 
+    this.log?.("delete keys: ", keys);
     await this.client.deleteObjects({
       Bucket: this.bucket,
       Delete: { Objects: keys.map((Key) => ({ Key })) },
