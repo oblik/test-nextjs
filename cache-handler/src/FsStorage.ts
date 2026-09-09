@@ -1,14 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { Dirent } from "node:fs";
-import {
-  mkdir,
-  readdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
-import { dirname, join, relative, sep } from "node:path";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, join, sep } from "node:path";
 import { createLogger, delay, Logger } from "./debug";
 import type { HandlerStorage } from "./types";
 import { isErrno } from "./utils/isErrno";
@@ -69,67 +61,7 @@ export class FsStorage implements HandlerStorage {
       await rename(tmp, filepath);
     } catch (error) {
       await rm(tmp, { force: true });
-      // The directory was removed by a concurrent `deletePrefix`, i.e. the
-      // entry was invalidated mid-write. The next request re-creates it, which
-      // is the same outcome as the equivalent S3 race.
-      if (isErrno(error, "ENOENT")) return;
       throw error;
     }
-  }
-
-  /**
-   * Replicates S3 prefix semantics over the literal key string. Note that the
-   * prefix `page/123` matches `page/123.json`, `page/123/...` **and**
-   * `page/1234/...`. That over-match is how S3 behaves and is preserved
-   * deliberately, so both backends invalidate the same entries.
-   */
-  async deletePrefix(prefix: string): Promise<string[]> {
-    const segments = prefix.split("/");
-    const dir = segments.slice(0, -1);
-    const base = segments[segments.length - 1];
-
-    // S3 has no keys with empty path segments (`a//b`), so such a prefix
-    // matches nothing. Bailing early also prevents `path.join` from collapsing
-    // the empty segment and deleting a whole parent directory. An empty prefix
-    // would match everything and is refused for the same reason.
-    if (dir.some((segment) => !segment)) return [];
-    if (!dir.length && !base) return [];
-
-    const dirPath = this.pathFor(dir);
-
-    let entries: Dirent[];
-    try {
-      entries = await readdir(dirPath, { withFileTypes: true });
-    } catch (error) {
-      if (isErrno(error, "ENOENT")) return [];
-      throw error;
-    }
-
-    const deleted: string[] = [];
-
-    for (const entry of entries) {
-      if (!entry.name.startsWith(base)) continue;
-
-      const entryPath = join(dirPath, entry.name);
-
-      if (entry.isDirectory()) {
-        const files = await readdir(entryPath, {
-          recursive: true,
-          withFileTypes: true,
-        });
-        for (const file of files) {
-          if (!file.isFile() || file.name.endsWith(TMP_SUFFIX)) continue;
-          const path = relative(dirPath, join(file.parentPath, file.name));
-          deleted.push([...dir, ...path.split(sep)].join("/"));
-        }
-      } else if (!entry.name.endsWith(TMP_SUFFIX)) {
-        deleted.push([...dir, entry.name].join("/"));
-      }
-
-      this.log?.(`deleting ${entryPath}`);
-      await rm(entryPath, { recursive: true, force: true });
-    }
-
-    return deleted;
   }
 }

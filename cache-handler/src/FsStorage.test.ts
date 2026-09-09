@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -16,12 +16,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
-
-async function exists(key: string) {
-  return stat(join(root, ...key.split("/")))
-    .then(() => true)
-    .catch(() => false);
-}
 
 describe("get/put", () => {
   it("round-trips a nested key, creating parent directories", async () => {
@@ -58,64 +52,5 @@ describe("get/put", () => {
 
   it("refuses keys that escape the root", async () => {
     await expect(storage.get("../outside.json")).rejects.toThrow(/escapes/);
-  });
-});
-
-describe("deletePrefix", () => {
-  const seeded = [
-    "build/x/page/123.json",
-    "build/x/page/123/us/en/eea=true.json",
-    "build/x/page/123/us/bg/eea=false.json",
-    "build/x/page/1234/us/en/eea=true.json",
-    "build/x/page/12.json",
-    "build/x/page/5/a.json",
-    "build/x/page.json",
-    "build/x/page-2/a.json",
-    "build/y/page/123.json",
-  ];
-
-  beforeEach(async () => {
-    await Promise.all(seeded.map((key) => storage.put(key, Buffer.from(key))));
-  });
-
-  it('matches S3 prefix semantics, including the "1234" over-match', async () => {
-    const deleted = await storage.deletePrefix("build/x/page/123");
-
-    expect(deleted.sort()).toEqual([
-      "build/x/page/123.json",
-      "build/x/page/123/us/bg/eea=false.json",
-      "build/x/page/123/us/en/eea=true.json",
-      // Not a real match for `page/123`, but S3 prefix matching is over the
-      // literal string, so it goes too. Preserved for parity.
-      "build/x/page/1234/us/en/eea=true.json",
-    ]);
-
-    for (const key of deleted) expect(await exists(key)).toBe(false);
-    expect(await exists("build/x/page/12.json")).toBe(true);
-    expect(await exists("build/x/page/5/a.json")).toBe(true);
-    expect(await exists("build/y/page/123.json")).toBe(true);
-  });
-
-  it("deletes everything under a trailing-slash prefix, but not siblings", async () => {
-    const deleted = await storage.deletePrefix("build/x/page/");
-
-    expect(deleted).toHaveLength(6);
-    expect(await exists("build/x/page")).toBe(true); // the dir itself stays
-    expect(await readdir(join(root, "build/x/page"))).toEqual([]);
-    expect(await exists("build/x/page.json")).toBe(true);
-    expect(await exists("build/x/page-2/a.json")).toBe(true);
-  });
-
-  it("returns an empty array for a prefix that matches nothing", async () => {
-    expect(await storage.deletePrefix("build/x/nope")).toEqual([]);
-    expect(await storage.deletePrefix("build/z/page/1")).toEqual([]);
-  });
-
-  it("deletes nothing for prefixes with empty segments", async () => {
-    // `revalidatePath('/')` yields the prefix `build/x//`.
-    expect(await storage.deletePrefix("build/x//")).toEqual([]);
-    expect(await storage.deletePrefix("")).toEqual([]);
-    expect(await storage.deletePrefix("/")).toEqual([]);
-    for (const key of seeded) expect(await exists(key)).toBe(true);
   });
 });

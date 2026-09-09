@@ -7,9 +7,4 @@ export interface HandlerStorage {
   /** Raw bytes, or `null` when the key doesn't exist. */
   get(key: string): Promise<Buffer | null>;
   put(key: string, body: Buffer): Promise<void>;
-  /**
-   * Deletes every key that starts with `prefix` (S3 prefix semantics) and
-   * returns the deleted keys, or an empty array when nothing matched.
-   */
-  deletePrefix(prefix: string): Promise<string[]>;
 }

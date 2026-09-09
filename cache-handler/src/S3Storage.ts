@@ -1,4 +1,3 @@
-import type { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3";
 import { S3, S3ServiceException } from "@aws-sdk/client-s3";
 import { createLogger } from "./debug";
 import type { HandlerStorage } from "./types";
@@ -37,33 +36,5 @@ export class S3Storage implements HandlerStorage {
       Key: key,
       Body: body,
     });
-  }
-
-  async deletePrefix(prefix: string): Promise<string[]> {
-    const keys: string[] = [];
-    let continuationToken: string | undefined = undefined;
-
-    do {
-      const response: ListObjectsV2CommandOutput =
-        await this.client.listObjectsV2({
-          Bucket: this.bucket,
-          ContinuationToken: continuationToken,
-          Prefix: prefix,
-        });
-      continuationToken = response.NextContinuationToken;
-
-      for (const object of response.Contents ?? []) {
-        if (object.Key) keys.push(object.Key);
-      }
-    } while (continuationToken);
-
-    if (!keys.length) return keys;
-
-    this.log?.("delete keys: ", keys);
-    await this.client.deleteObjects({
-      Bucket: this.bucket,
-      Delete: { Objects: keys.map((Key) => ({ Key })) },
-    });
-    return keys;
   }
 }

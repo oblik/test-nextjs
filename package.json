@@ -6,7 +6,8 @@
     "prebuild": "tsc -p cache-handler/tsconfig.json",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.926.0",
