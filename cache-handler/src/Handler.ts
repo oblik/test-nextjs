@@ -9,10 +9,10 @@ import {
   streamToBuffer,
 } from "next/dist/server/stream-utils/node-web-streams-helper";
 import { createHash } from "node:crypto";
-import { createLogger, type Logger } from "./debug";
 import type { TagsManager, TagsManifest } from "./TagsManager";
 import type { HandlerStorage } from "./types";
 import { decode, encode } from "./utils/compress";
+import { createLogger, type Logger } from "./utils/debug";
 import { replaceBuffers, reviveBuffers } from "./utils/reviveBuffers";
 
 type LRUCacheEntry = {

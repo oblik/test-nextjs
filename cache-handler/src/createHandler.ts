@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { NEXT_CACHE_S3_BUCKET, NEXT_CACHE_S3_REGION } from "./config";
 import { FsStorage } from "./FsStorage";
 import type { Handler } from "./Handler";
 import { S3Storage } from "./S3Storage";
 import { TagsManager } from "./TagsManager";
 import type { HandlerStorage } from "./types";
+import { NEXT_CACHE_S3_BUCKET, NEXT_CACHE_S3_REGION } from "./utils/config";
 
 let root: string;
 let buildId: string;

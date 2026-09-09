@@ -1,6 +1,6 @@
 import { S3, S3ServiceException } from "@aws-sdk/client-s3";
-import { createLogger } from "./debug";
 import type { HandlerStorage } from "./types";
+import { createLogger } from "./utils/debug";
 
 /**
  * Stores cache entries as objects in an S3 bucket.
