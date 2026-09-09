@@ -22,40 +22,22 @@ type LRUCacheEntry = {
 };
 
 export class Handler implements CacheHandler {
-  buildId: string;
-  storage: HandlerStorage;
-  tagsManager: TagsManager;
-  options: {
-    name: string;
-    lruSize: number;
-    sticky: boolean;
-    compress: boolean;
-    base64: boolean;
-  };
+  log: Logger;
 
   lruCache?: LRUCache<LRUCacheEntry>;
 
-  tags?: Readonly<TagsManifest>;
-
-  /**
-   * Inspired by the example custom cache handler implementation by Next.
-   * @see https://github.com/vercel/next.js/blob/6ef6e29db5ec78704af1ea05a16b233bb7faac7c/packages/next/src/server/lib/cache-handlers/default.ts#L68
-   */
-  pendingSets = new Map<string, Promise<CacheEntry>>();
-
-  log: Logger;
-
-  constructor({
-    buildId,
-    storage,
-    tagsManager,
-    options,
-  }: {
-    buildId: string;
-    storage: HandlerStorage;
-    tagsManager: TagsManager;
-    options: Handler["options"];
-  }) {
+  constructor(
+    protected buildId: string,
+    protected storage: HandlerStorage,
+    protected tagsManager: TagsManager,
+    protected options: {
+      name: string;
+      lruSize: number;
+      sticky: boolean;
+      compress: boolean;
+      base64: boolean;
+    },
+  ) {
     this.buildId = buildId;
     this.storage = storage;
     this.tagsManager = tagsManager;
@@ -73,10 +55,15 @@ export class Handler implements CacheHandler {
     }
   }
 
+  tags?: Readonly<TagsManifest>;
+
   async refreshTags() {
     this.tags = await this.tagsManager.getTags();
   }
 
+  /**
+   * @todo Add `softTags` support.
+   */
   async get(
     cacheKey: string,
     softTags: string[],
@@ -101,6 +88,12 @@ export class Handler implements CacheHandler {
 
     return entry;
   }
+
+  /**
+   * Inspired by the example custom cache handler implementation by Next.
+   * @see https://github.com/vercel/next.js/blob/6ef6e29db5ec78704af1ea05a16b233bb7faac7c/packages/next/src/server/lib/cache-handlers/default.ts#L68
+   */
+  pendingSets = new Map<string, Promise<CacheEntry>>();
 
   async findEntry(filename: string): Promise<CacheEntry | undefined> {
     const pendingPromise = this.pendingSets.get(filename);

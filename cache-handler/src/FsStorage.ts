@@ -1,24 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
-import { createLogger, delay, Logger } from "./debug";
+import { createLogger, delay } from "./debug";
 import type { HandlerStorage } from "./types";
 import { isErrno } from "./utils/isErrno";
 
 const TMP_SUFFIX = ".tmp";
 
 /**
- * Stores cache entries as files, mapping each `/`-separated object key to a
- * path below `root`. Meant for local debugging, where there's no S3 bucket.
+ * Filesystem implementation that should mimic the behaviors of S3 but locally,
+ * so that caching can work in development mode.
  */
 export class FsStorage implements HandlerStorage {
-  protected root: string;
-  protected log: Logger;
+  protected log = createLogger("FsStorage");
 
-  constructor(root: string) {
-    this.root = root;
-    this.log = createLogger("FsStorage");
-  }
+  constructor(protected root: string) {}
 
   /**
    * Resolves key segments to an absolute path, refusing anything that would

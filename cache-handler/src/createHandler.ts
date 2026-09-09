@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { CACHE_S3_BUCKET, CACHE_S3_REGION } from "./config";
+import { NEXT_CACHE_S3_BUCKET, NEXT_CACHE_S3_REGION } from "./config";
 import { FsStorage } from "./FsStorage";
+import type { Handler } from "./Handler";
 import { S3Storage } from "./S3Storage";
 import { TagsManager } from "./TagsManager";
 import type { HandlerStorage } from "./types";
-import { type Handler } from "./UseCacheHandler";
 
 let root: string;
 let buildId: string;
@@ -47,8 +47,8 @@ export function createHandler(
   }
 
   if (!storage) {
-    if (CACHE_S3_BUCKET && CACHE_S3_REGION) {
-      storage = new S3Storage(CACHE_S3_BUCKET, CACHE_S3_REGION);
+    if (NEXT_CACHE_S3_BUCKET && NEXT_CACHE_S3_REGION) {
+      storage = new S3Storage(NEXT_CACHE_S3_BUCKET, NEXT_CACHE_S3_REGION);
     } else {
       storage = new FsStorage(path.join(root, "cache/cache-handler"));
     }
@@ -63,5 +63,5 @@ export function createHandler(
     );
   }
 
-  return new HandlerClass({ buildId, storage, tagsManager, options });
+  return new HandlerClass(buildId, storage, tagsManager, options);
 }

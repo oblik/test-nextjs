@@ -1,7 +1,7 @@
 /**
  * Minimal key/value store the cache handler needs. Keys are the **full** object
- * keys (including the `build/<id>/` prefix) and values are opaque byte
- * buffers; JSON (de)serialization and compression are the handler's job.
+ * keys (including the `build/<id>/` prefix) and values are opaque byte buffers;
+ * JSON (de)serialization and compression are the handler's job.
  */
 export interface HandlerStorage {
   /** Raw bytes, or `null` when the key doesn't exist. */

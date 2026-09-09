@@ -68,10 +68,7 @@ export class TagsManager {
     return this.manifest;
   }
 
-  /**
-   * @todo Add Brotli compression here as well?
-   * @todo Add ETag checking?
-   */
+  /** @todo Add Brotli compression here as well? */
   protected async fetchManifest(): Promise<TagsManifest | undefined> {
     this.log?.("fetching manifest");
     const body = await this.storage.get("tags-manifest.json");
