@@ -10,8 +10,8 @@ import {
 } from "next/dist/server/stream-utils/node-web-streams-helper";
 import { createHash } from "node:crypto";
 import { createLogger, type Logger } from "./debug";
-import type { HandlerStorage } from "./storage/types";
 import type { TagsManager, TagsManifest } from "./TagsManager";
+import type { HandlerStorage } from "./types";
 import { decode, encode } from "./utils/compress";
 import { replaceBuffers, reviveBuffers } from "./utils/reviveBuffers";
 

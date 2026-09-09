@@ -1,5 +1,5 @@
 import { createLogger } from "./debug";
-import type { HandlerStorage } from "./storage/types";
+import type { HandlerStorage } from "./types";
 
 export interface TagsManifest {
   [tagName: string]: Readonly<{

@@ -1,17 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 import { CACHE_S3_BUCKET, CACHE_S3_REGION } from "./config";
-import { FsStorage } from "./storage/FsStorage";
-import { S3Storage } from "./storage/S3Storage";
-import type { HandlerStorage } from "./storage/types";
+import { FsStorage } from "./FsStorage";
+import { S3Storage } from "./S3Storage";
 import { TagsManager } from "./TagsManager";
-import type { Handler } from "./UseCacheHandler";
+import type { HandlerStorage } from "./types";
+import { type Handler } from "./UseCacheHandler";
 
 let root: string;
 let buildId: string;
 let storage: HandlerStorage;
 let tagsManager: TagsManager;
 
+/**
+ * This factory function is needed because we need to dynamically switch the
+ * cache handler storage adapter (S3 or filesystem) depending on whether we're
+ * running locally or not.
+ */
 export function createHandler(
   HandlerClass: typeof Handler,
   options: {
@@ -26,17 +31,19 @@ export function createHandler(
     };
   },
 ): Handler | undefined {
-  // Next initializes during build, where it makes no sense to create handlers,
-  // since there's no `BUILD_ID` file and no traffic to serve.
-  if (process.env.NEXT_PHASE === "phase-production-build") return;
-
   if (!root) root = path.join(process.cwd(), ".next");
 
   if (!buildId) {
-    const buildIdPath = path.join(root, "BUILD_ID");
-    buildId = fs.readFileSync(buildIdPath, "utf8");
+    if (process.env.__NEXT_DEV_SERVER === "1") {
+      buildId = "_dev";
+    } else if (process.env.NEXT_PHASE === "phase-production-build") {
+      buildId = "_build";
+    } else {
+      const buildIdPath = path.join(root, "BUILD_ID");
+      buildId = fs.readFileSync(buildIdPath, "utf8");
 
-    if (!buildId) throw new Error("Build ID missing");
+      if (!buildId) throw new Error("Build ID missing");
+    }
   }
 
   if (!storage) {

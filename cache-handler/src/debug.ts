@@ -1,4 +1,4 @@
-export const IS_DEBUG = Boolean(process.env.NEXT_CACHE_S3_DEBUG);
+import { IS_DEBUG } from "./config";
 
 /**
  * Inspired by a similar implementation in Next:

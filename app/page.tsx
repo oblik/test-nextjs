@@ -8,18 +8,22 @@ export const instant = false;
 let renderCount = 0;
 
 export default async function Page() {
+  // This forces Next to avoid trying to prerender anything further down the
+  // tree. We need this because we made DB calls which wouldn't be possible from
+  // a build server running in a different AWS account.
+  await connection();
+  return <Content />;
+}
+
+async function Content() {
+  "use cache";
+
   const renderId = ++renderCount;
   console.log(`\n[Page] render #${renderId} 🟢`);
 
-  await connection();
   const [data, stickyData] = await Promise.all([getData(), getStickyData()]);
-
   const json = JSON.stringify(
-    {
-      renderedAt: new Date().toISOString(),
-      data,
-      stickyData,
-    },
+    { renderedAt: new Date().toISOString(), data, stickyData },
     null,
     2,
   );

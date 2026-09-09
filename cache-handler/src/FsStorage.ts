@@ -9,9 +9,9 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
-import { createLogger, delay, Logger } from "../debug";
-import { isErrno } from "../utils/isErrno";
+import { createLogger, delay, Logger } from "./debug";
 import type { HandlerStorage } from "./types";
+import { isErrno } from "./utils/isErrno";
 
 const TMP_SUFFIX = ".tmp";
 
