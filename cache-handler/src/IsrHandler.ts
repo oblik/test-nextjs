@@ -7,12 +7,12 @@ import type {
 import type { IncrementalCacheValue } from "next/dist/server/response-cache";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { decode, encode } from "./compress";
-import { isErrno } from "./isErrno";
-import { mapKey } from "./mapKey";
-import { replaceBuffers, reviveBuffers } from "./reviveBuffers";
 import { createStorage } from "./storage/index";
 import type { HandlerStorage } from "./storage/types";
+import { decode, encode } from "./utils/compress";
+import { isErrno } from "./utils/isErrno";
+import { mapKey } from "./utils/mapKey";
+import { replaceBuffers, reviveBuffers } from "./utils/reviveBuffers";
 
 const DEBUG = process.env.PINO_LOG_LEVEL === "trace";
 const { CACHE_S3_BUCKET, CACHE_S3_REGION, CACHE_COMPRESS, CACHE_BASE64 } =

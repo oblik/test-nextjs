@@ -9,11 +9,11 @@ import {
   streamToBuffer,
 } from "next/dist/server/stream-utils/node-web-streams-helper";
 import { createHash } from "node:crypto";
-import { decode, encode } from "./compress";
 import { createLogger, type Logger } from "./debug";
-import { replaceBuffers, reviveBuffers } from "./reviveBuffers";
 import type { HandlerStorage } from "./storage/types";
 import type { TagsManager, TagsManifest } from "./TagsManager";
+import { decode, encode } from "./utils/compress";
+import { replaceBuffers, reviveBuffers } from "./utils/reviveBuffers";
 
 type LRUCacheEntry = {
   entry: Omit<CacheEntry, "value">;

@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { createLogger, delay, Logger } from "../debug";
-import { isErrno } from "../isErrno";
+import { isErrno } from "../utils/isErrno";
 import type { HandlerStorage } from "./types";
 
 const TMP_SUFFIX = ".tmp";

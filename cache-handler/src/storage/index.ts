@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { CACHE_S3_BUCKET, CACHE_S3_REGION } from "../config";
-import { FsStorage } from "./fs";
-import { S3Storage } from "./s3";
+import { FsStorage } from "./FsStorage";
+import { S3Storage } from "./S3Storage";
 import type { HandlerStorage } from "./types";
 
 /**

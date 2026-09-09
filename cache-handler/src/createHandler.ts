@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { CACHE_S3_BUCKET, CACHE_S3_REGION } from "./config";
-import { FsStorage } from "./storage/fs";
-import { S3Storage } from "./storage/s3";
+import { FsStorage } from "./storage/FsStorage";
+import { S3Storage } from "./storage/S3Storage";
 import type { HandlerStorage } from "./storage/types";
 import { TagsManager } from "./TagsManager";
-import type { Handler } from "./use-cache";
+import type { Handler } from "./UseCacheHandler";
 
 let root: string;
 let buildId: string;
